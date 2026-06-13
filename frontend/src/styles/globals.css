@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #0f172a; /* Slate-900 */
+  background-color: #f8fafc; /* Slate-50 */
+  line-height: 1.6;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9; /* Slate-100 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* Slate-300 */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* Slate-400 */
+}
+
+/* Reusable component classes */
+@layer components {
+  .card-soft {
+    @apply bg-white border border-slate-200 rounded-xl shadow-soft transition-all duration-200;
+  }
+  
+  .card-hover {
+    @apply card-soft hover:border-slate-300 hover:shadow-lg;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white px-5 py-2.5 rounded-lg font-semibold transition-all hover:bg-primary/90 active:scale-[0.98];
+  }
+  
+  .btn-secondary {
+    @apply bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-lg font-semibold transition-all hover:bg-slate-50;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-slate-600 px-4 py-2 rounded-lg font-medium transition-all hover:bg-slate-100;
+  }
+  
+  .badge-success {
+    @apply bg-success/10 text-success text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+  
+  .badge-warning {
+    @apply bg-warning/10 text-warning text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+  
+  .badge-primary {
+    @apply bg-primary/10 text-primary text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+}
