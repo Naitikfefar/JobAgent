@@ -15,8 +15,7 @@ const JobSchema = new mongoose.Schema({
     required: true
   },
   source: {
-    type: String,
-    enum: ['Internshala', 'LinkedIn', 'Indeed', 'Naukri', 'Glassdoor']
+    type: String
   },
   applyLink: String,
   stipend: String,
@@ -29,7 +28,13 @@ const JobSchema = new mongoose.Schema({
   },
   matchedSkills: [String],
   coverLetter: String,
-  resumePath: String,
+  resumePath: { type: String, default: null },
+  optimizedResumeScore: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+  isBookmarked: { type: Boolean, default: false },
   status: {
     type: String,
     enum: ['new', 'saved', 'applied', 'interview', 'rejected', 'offered'],

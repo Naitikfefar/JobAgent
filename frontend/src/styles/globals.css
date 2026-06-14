@@ -17,6 +17,12 @@ body {
   line-height: 1.6;
 }
 
+/* Dark mode base overrides when `dark` class is present on <html> */
+.dark body {
+  color: #E6E6EB;
+  background-color: #07070A;
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
