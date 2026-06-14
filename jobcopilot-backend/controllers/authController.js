@@ -10,6 +10,15 @@ const generateToken = (userId) => {
   );
 };
 
+// Compute level from xp using thresholds
+function computeLevelFromXp(xp) {
+  const thresholds = [0, 500, 1500, 3000, 5000, 8000, 12000, 17000, 23000, 30000];
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    if (xp >= thresholds[i]) return i + 1; // levels 1..10
+  }
+  return 1;
+}
+
 // Register User
 exports.register = async (req, res) => {
   try {
@@ -100,6 +109,54 @@ exports.getMe = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server Error');
+  }
+};
+
+// Get XP profile (xp, level, achievements, streak, quests)
+exports.getXpProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('xp level achievements streak quests xpHistory');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ xp: user.xp, level: user.level, achievements: user.achievements, streak: user.streak, quests: user.quests, xpHistory: user.xpHistory });
+  } catch (error) {
+    console.error('getXpProfile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Award XP to current user
+exports.awardXp = async (req, res) => {
+  try {
+    const { amount, reason, achievement } = req.body;
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid amount' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.xp = (user.xp || 0) + amount;
+    user.xpHistory = user.xpHistory || [];
+    user.xpHistory.push({ amount, reason: reason || 'manual', date: new Date() });
+
+    // Optional achievement object { id, name, description, points }
+    if (achievement && achievement.id) {
+      user.achievements = user.achievements || [];
+      const exists = user.achievements.find(a => a.id === achievement.id);
+      if (!exists) {
+        user.achievements.push({ id: achievement.id, name: achievement.name, description: achievement.description, points: achievement.points || 0, earnedAt: new Date() });
+      }
+    }
+
+    // Recompute level
+    user.level = computeLevelFromXp(user.xp);
+
+    await user.save();
+
+    res.json({ xp: user.xp, level: user.level, achievements: user.achievements });
+  } catch (error) {
+    console.error('awardXp error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

@@ -1,8 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  Home, Briefcase, FileText, Mail, BarChart3, User, LogOut, TrendingUp, Sun, Moon } from 'lucide-react';
+  Home, Briefcase, FileText, Mail, BarChart3, User, LogOut, TrendingUp, Sun, Moon, Trophy, Star 
+} from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useEffect, useState } from 'react';
+import { getMySubscription } from '@/services/api';
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -10,8 +13,24 @@ interface SidebarProps {
 
 export default function Sidebar({ children }: SidebarProps) {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const theme = useTheme();
+  const [currentPlan, setCurrentPlan] = useState('free');
+
+  useEffect(() => {
+    const loadSubscription = async () => {
+      if (user) {
+        try {
+          const res = await getMySubscription();
+          setCurrentPlan(res.data.plan);
+        } catch (err) {
+          console.error('Failed to load subscription:', err);
+        }
+      }
+    };
+
+    loadSubscription();
+  }, [user]);
 
   function ThemeToggle() {
     const { isDark, toggleTheme } = theme || { isDark: false, toggleTheme: () => {} };
@@ -30,6 +49,7 @@ export default function Sidebar({ children }: SidebarProps) {
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: Briefcase, label: 'Jobs', path: '/jobs' },
     { icon: FileText, label: 'Resume', path: '/resume' },
+    { icon: Trophy, label: 'Career Growth', path: '/career' },
     { icon: User, label: 'Profile', path: '/profile' },
     { icon: TrendingUp, label: 'Skill Gap', path: '/skill-gap' },
     { icon: Mail, label: 'Cover Letters', path: '/cover-letters' },
@@ -66,7 +86,21 @@ export default function Sidebar({ children }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-[#2A2A3E] space-y-2">
+        <div className="p-4 border-t border-slate-200 dark:border-[#2A2A3E] space-y-4">
+          {/* Upgrade Banner for Free Users */}
+          {currentPlan === 'free' && (
+            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+              <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">Free Plan</p>
+              <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Upgrade for unlimited jobs + interview prep</p>
+              <Link
+                to="/pricing"
+                className="mt-2 block text-center text-xs bg-purple-600 text-white rounded-lg py-1.5 font-medium hover:bg-purple-700 transition-colors"
+              >
+                Upgrade to Pro →
+              </Link>
+            </div>
+          )}
+
           {/* Theme toggle */}
           <ThemeToggle />
 

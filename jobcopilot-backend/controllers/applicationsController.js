@@ -2,6 +2,7 @@ const Application = require('../models/Application');
 const Job = require('../models/Job');
 const User = require('../models/User');
 const axios = require('axios');
+const { recordCareerActivity } = require('../services/careerProgressService');
 
 // Telegram notification function
 async function sendTelegramNotification(chatId, message) {
@@ -58,6 +59,10 @@ exports.createApplication = async (req, res) => {
     });
 
     await application.save();
+    await recordCareerActivity(req.user.id, 'application_submitted', {
+      refId: application._id.toString(),
+      eventKey: `application_submitted:${application._id}`
+    });
 
     // Update related job status if jobId exists
     if (jobId) {
@@ -85,6 +90,7 @@ exports.updateApplication = async (req, res) => {
     }
 
     const { status, notes, interviewDate, followUpDate } = req.body;
+    const previousStatus = application.status;
     const updatedApplication = await Application.findByIdAndUpdate(
       req.params.id,
       { status, notes, interviewDate, followUpDate },
@@ -93,11 +99,25 @@ exports.updateApplication = async (req, res) => {
 
     // Send Telegram notification if status is interview_scheduled
     if (status === 'interview_scheduled') {
+      if (previousStatus !== 'interview_scheduled') {
+        await recordCareerActivity(req.user.id, 'interview_invitation', {
+          refId: application._id.toString(),
+          eventKey: `interview_invitation:${application._id}`
+        });
+      }
+
       const user = await User.findById(req.user.id);
       if (user.telegramChatId) {
         const message = `🎉 Interview scheduled at <b>${application.company}</b> for <b>${application.jobTitle}</b>!`;
         await sendTelegramNotification(user.telegramChatId, message);
       }
+    }
+
+    if (status === 'offered' && previousStatus !== 'offered') {
+      await recordCareerActivity(req.user.id, 'offer_received', {
+        refId: application._id.toString(),
+        eventKey: `offer_received:${application._id}`
+      });
     }
 
     res.json(updatedApplication);

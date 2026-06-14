@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const User = require('../models/User');
 const Job = require('../models/Job');
+const { recordCareerActivity } = require('../services/careerProgressService');
 
 // Upload Resume
 exports.uploadResume = async (req, res) => {
@@ -55,6 +56,10 @@ exports.uploadResume = async (req, res) => {
             }
 
             await user.save();
+            await recordCareerActivity(req.user.id, 'resume_uploaded', {
+              refId: user.resume.filePath,
+              eventKey: `resume_uploaded:${user.resume.filePath}`
+            });
 
             return res.json({
               message: 'Resume uploaded and parsed successfully',
@@ -72,6 +77,10 @@ exports.uploadResume = async (req, res) => {
           } else {
             // Save file even if parsing failed
             await user.save();
+            await recordCareerActivity(req.user.id, 'resume_uploaded', {
+              refId: user.resume.filePath,
+              eventKey: `resume_uploaded:${user.resume.filePath}`
+            });
             return res.json({
               message: 'Resume uploaded (parsing had issues)',
               file: { name: req.file.originalname, path: newFilePath },
@@ -80,6 +89,10 @@ exports.uploadResume = async (req, res) => {
           }
         } catch (parseError) {
           await user.save();
+          await recordCareerActivity(req.user.id, 'resume_uploaded', {
+            refId: user.resume.filePath,
+            eventKey: `resume_uploaded:${user.resume.filePath}`
+          });
           return res.json({
             message: 'Resume uploaded',
             file: { name: req.file.originalname },
@@ -137,6 +150,10 @@ exports.generateResume = async (req, res) => {
             job.optimizedResumeScore = result.match_score;
           }
           await job.save();
+          await recordCareerActivity(req.user.id, 'resume_optimized', {
+            refId: job._id.toString(),
+            eventKey: `resume_optimized:${job._id}`
+          });
           res.json({
             message: 'Resume generated',
             resumePath: result.resume_path,

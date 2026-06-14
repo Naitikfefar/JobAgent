@@ -8,6 +8,7 @@ const {
   updateProfile, 
   changePassword 
 } = require('../controllers/authController');
+const { getXpProfile, awardXp } = require('../controllers/authController');
 const auth = require('../middleware/auth');
 
 // Public Routes with validation
@@ -48,5 +49,9 @@ router.post(
 router.get('/me', auth, getMe);
 router.put('/profile', auth, updateProfile);
 router.post('/change-password', auth, changePassword);
+
+// Gamification endpoints
+router.get('/xp', auth, getXpProfile);
+router.post('/xp/award', auth, awardXp);
 
 module.exports = router;

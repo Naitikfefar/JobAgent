@@ -53,8 +53,10 @@ const UserSchema = new mongoose.Schema({
     endDate: Date,
     isActive: {
       type: Boolean,
-      default: true
-    }
+      default: false
+    },
+    razorpayOrderId: String,
+    razorpayPaymentId: String
   },
   telegramChatId: {
     type: String
@@ -72,6 +74,46 @@ const UserSchema = new mongoose.Schema({
   lastActive: {
     type: Date
   }
+  ,
+  // Gamification fields
+  xp: {
+    type: Number,
+    default: 0
+  },
+  level: {
+    type: Number,
+    default: 1
+  },
+  achievements: [
+    {
+      id: String,
+      name: String,
+      description: String,
+      points: Number,
+      earnedAt: Date
+    }
+  ],
+  xpHistory: [
+    {
+      amount: Number,
+      reason: String,
+      date: { type: Date, default: Date.now }
+    }
+  ],
+  streak: {
+    currentStreakDays: { type: Number, default: 0 },
+    lastActiveDate: Date
+  },
+  quests: [
+    {
+      questId: String,
+      title: String,
+      progress: { type: Number, default: 0 },
+      target: Number,
+      rewardXp: Number,
+      completed: { type: Boolean, default: false }
+    }
+  ]
 });
 
 UserSchema.pre('save', async function (next) {

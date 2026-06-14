@@ -7,10 +7,13 @@ const {
   getSkillGapAnalysis,
   getJobById, 
   updateJobStatus, 
-  getJobStats 
+  getJobStats,
+  generateInterviewPrep,
+  saveInterviewAnswer
 } = require('../controllers/jobsController');
 const { toggleBookmark, getBookmarkedJobs } = require('../controllers/jobsController');
 const auth = require('../middleware/auth');
+const { requirePlan } = require('../middleware/checkPlan');
 
 // Protected Routes
 router.get('/today', auth, getTodayJobs);
@@ -22,5 +25,7 @@ router.get('/bookmarked', auth, getBookmarkedJobs);
 router.get('/:id', auth, getJobById);
 router.put('/:id/status', auth, updateJobStatus);
 router.put('/:id/bookmark', auth, toggleBookmark);
+router.get('/:jobId/interview-prep', auth, requirePlan('pro'), generateInterviewPrep);
+router.post('/interview-answers', auth, saveInterviewAnswer);
 
 module.exports = router;
