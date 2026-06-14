@@ -1,84 +1,64 @@
 const { exec } = require('child_process');
 const path = require('path');
-const fs = require('fs');
+const mongoose = require('mongoose');
 const Job = require('../models/Job');
-const Application = require('../models/Application');
 const User = require('../models/User');
-
-// Helper: Get today's date as YYYY-MM-DD
-const getTodayDate = () => {
-  const today = new Date();
-  return today.toISOString().split('T')[0];
-};
-
-// Get today's jobs
-exports.getTodayJobs = async (req, res) => {
-  try {
-    const today = getTodayDate();
-    const startOfDay = new Date(today);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const jobs = await Job.find({
-      userId: req.user.id,
-      foundAt: { $gte: startOfDay, $lte: endOfDay }
-    }).sort({ matchScore: -1 });
-
-    res.json(jobs);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
-  }
-};
-
+const Application = require('../models/Application');
 // Search jobs (trigger agent)
 exports.searchJobs = async (req, res) => {
   try {
+    console.log('Search jobs called for user:', req.user?.id);
     const user = await User.findById(req.user.id);
-    
-    // Build user skills from profile
+    console.log('User found:', user?.name, 'Skills:', user?.profile?.skills?.length);
+
     const userSkills = user.profile?.skills || [];
-    const skillsArg = JSON.stringify(userSkills);
+    const userRoles = user.profile?.preferredRoles || [];
+    const remoteOnly = user.profile?.remoteOnly !== false;
 
-    // Path to agent script - works on both Windows and Linux
+    // Use user skills or fallback to general tech skills
+    const searchSkills = userSkills.length > 0 ? userSkills : [
+      'react', 'node', 'javascript', 'python', 'full stack',
+      'frontend', 'backend', 'mongodb', 'sql', 'web development'
+    ];
+
     const agentPath = path.join(__dirname, '../agents/find_jobs.py');
+    const agentInput = JSON.stringify({ skills: searchSkills, roles: userRoles, remote_only: remoteOnly });
+    const escapedInput = agentInput.replace(/"/g, '\\"');
 
-    exec(`python "${agentPath}" '${skillsArg}'`, 
-      { timeout: 60000, maxBuffer: 1024 * 1024 * 5 },
+    exec(`python "${agentPath}" "${escapedInput}"`, { timeout: 120000, maxBuffer: 1024 * 1024 * 10 },
       async (error, stdout, stderr) => {
         if (error) {
-          console.error('Agent error:', error);
-          return res.status(500).json({ message: 'Job search failed', error: error.message });
+            console.error('Agent error:', error.message);
+            console.error('Agent stderr:', stderr);
+            console.error('Agent stdout (truncated):', (stdout||'').slice(0,1000));
+            return res.status(500).json({ message: 'Job search failed', error: error.message, stderr: stderr });
         }
 
         let jobsData;
         try {
           jobsData = JSON.parse(stdout);
         } catch (e) {
-          console.error('Parse error:', e, 'stdout:', stdout.slice(0, 200));
-          return res.status(500).json({ message: 'Failed to parse job results' });
+          console.error('Parse error:', e);
+          console.error('Parse stdout:', stdout);
+          console.error('Parse stderr:', stderr);
+          return res.status(500).json({ message: 'Failed to parse results', parseError: e.message, stdout: (stdout||'').slice(0,200), stderr });
         }
 
-        // Generate cover letters using Groq and save jobs
+        // Remove today's existing jobs
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        await Job.deleteMany({ userId: req.user.id, foundAt: { $gte: startOfDay } });
+
         const savedJobs = [];
+        const seenCompanies = new Set();
+
         for (const job of jobsData) {
           try {
-            // Check if this job already exists for this user today
-            const existingJob = await Job.findOne({
-              userId: req.user.id,
-              company: job.company,
-              title: job.title
-            });
+            const companyKey = job.company?.toLowerCase().trim();
+            if (!companyKey || seenCompanies.has(companyKey)) continue;
+            seenCompanies.add(companyKey);
 
-            if (existingJob) {
-              savedJobs.push(existingJob);
-              continue; // Skip if already exists
-            }
-
-            const coverLetter = await generateCoverLetter(
-              job.title, job.company, job.about || '',
-              user.profile?.skills || [], user.name
-            );
+            const coverLetter = await generateCoverLetter(job.title, job.company, job.about || '', userSkills, user.name);
 
             const newJob = new Job({
               userId: req.user.id,
@@ -98,7 +78,7 @@ exports.searchJobs = async (req, res) => {
             await newJob.save();
             savedJobs.push(newJob);
           } catch (jobError) {
-            console.error('Error saving job:', jobError);
+            console.error('Job save error:', jobError.message || jobError);
           }
         }
 
@@ -106,8 +86,36 @@ exports.searchJobs = async (req, res) => {
       }
     );
   } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get today's discovered jobs for the current user
+exports.getTodayJobs = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // Return all fields (including coverLetter and resumePath)
+    const jobs = await Job.find({ userId, foundAt: { $gte: startOfDay } }).sort({ foundAt: -1 }).lean();
+    res.json(jobs);
+  } catch (error) {
+    console.error('getTodayJobs error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get all jobs that have cover letters for current user
+exports.getCoverLetters = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const jobs = await Job.find({ userId, coverLetter: { $exists: true, $ne: '' } }).sort({ foundAt: -1 }).lean();
+    res.json(jobs);
+  } catch (error) {
+    console.error('getCoverLetters error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -142,6 +150,10 @@ Under 200 words. Specific to this job.`
 // Get job by ID
 exports.getJobById = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid job ID' });
+    }
+
     const job = await Job.findById(req.params.id);
 
     if (!job) {
@@ -204,6 +216,31 @@ exports.updateJobStatus = async (req, res) => {
   }
 };
 
+// Toggle bookmark
+exports.toggleBookmark = async (req, res) => {
+  try {
+    const job = await Job.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    job.isBookmarked = !job.isBookmarked;
+    await job.save();
+    res.json({ isBookmarked: job.isBookmarked, message: job.isBookmarked ? 'Bookmarked!' : 'Removed' });
+  } catch (error) {
+    console.error('toggleBookmark error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get bookmarked jobs
+exports.getBookmarkedJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find({ userId: req.user.id, isBookmarked: true }).sort({ foundAt: -1 }).lean();
+    res.json(jobs);
+  } catch (error) {
+    console.error('getBookmarkedJobs error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Get job stats
 exports.getJobStats = async (req, res) => {
   try {
@@ -230,3 +267,70 @@ exports.getJobStats = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+
+// Skill gap analysis
+exports.getSkillGapAnalysis = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).lean();
+    const jobs = await Job.find({ userId: req.user.id }).limit(20).lean();
+
+    const userSkills = (user.profile?.skills || []).map(s => s.toLowerCase());
+
+    const allSkills = [
+      'react', 'node.js', 'javascript', 'python', 'typescript', 'mongodb',
+      'mysql', 'postgresql', 'aws', 'docker', 'kubernetes', 'git', 'java',
+      'spring boot', 'django', 'flask', 'next.js', 'vue', 'angular',
+      'machine learning', 'tensorflow', 'pytorch', 'sql', 'redis',
+      'graphql', 'rest api', 'flutter', 'kotlin', 'swift', 'figma',
+      'tailwind', 'css', 'html', 'express', 'fastapi', 'data science',
+      'deep learning', 'nlp', 'pandas', 'numpy', 'power bi', 'tableau'
+    ];
+
+    const skillFrequency = {};
+    jobs.forEach(job => {
+      const jobText = ((job.title || '') + ' ' + (job.about || '')).toLowerCase();
+      allSkills.forEach(skill => {
+        if (jobText.includes(skill)) {
+          skillFrequency[skill] = (skillFrequency[skill] || 0) + 1;
+        }
+      });
+    });
+
+    const sortedSkills = Object.entries(skillFrequency)
+      .sort(([,a],[,b]) => b - a)
+      .slice(0, 20);
+
+    const gaps = sortedSkills
+      .filter(([skill]) => !userSkills.some(us => us.includes(skill) || skill.includes(us)))
+      .map(([skill, count]) => ({
+        skill,
+        demandCount: count,
+        demandPercent: Math.round((count / Math.max(jobs.length, 1)) * 100),
+        learningResources: getLearningResources(skill)
+      }));
+
+    const matching = sortedSkills
+      .filter(([skill]) => userSkills.some(us => us.includes(skill) || skill.includes(us)))
+      .map(([skill, count]) => ({
+        skill,
+        demandPercent: Math.round((count / Math.max(jobs.length, 1)) * 100)
+      }));
+
+    res.json({ gaps: gaps.slice(0, 10), matching, totalJobs: jobs.length });
+  } catch (error) {
+    console.error('getSkillGapAnalysis error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+function getLearningResources(skill) {
+  const resources = {
+    'react': [{ name: 'React Docs', url: 'https://react.dev', free: true }, { name: 'Scrimba React', url: 'https://scrimba.com', free: false }],
+    'typescript': [{ name: 'TypeScript Handbook', url: 'https://typescriptlang.org/docs', free: true }],
+    'docker': [{ name: 'Docker Getting Started', url: 'https://docs.docker.com/get-started', free: true }],
+    'machine learning': [{ name: 'Coursera ML', url: 'https://coursera.org/learn/machine-learning', free: false }, { name: 'fast.ai', url: 'https://fast.ai', free: true }],
+    'aws': [{ name: 'AWS Free Tier', url: 'https://aws.amazon.com/free', free: true }],
+    'python': [{ name: 'Python.org Docs', url: 'https://python.org/doc', free: true }],
+  };
+  return resources[skill] || [{ name: `Search "${skill} tutorial"`, url: `https://google.com/search?q=${encodeURIComponent(skill)}+tutorial+free`, free: true }];
+}

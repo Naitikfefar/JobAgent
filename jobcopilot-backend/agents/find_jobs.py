@@ -40,10 +40,19 @@ def is_tech(title):
     return any(kw in t for kw in TECH_TITLES)
 
 def calc_match(title, about, user_skills=None):
-    skills = user_skills if user_skills else NAITIK_SKILLS
+    import re
+    skills = [s.lower() for s in (user_skills if user_skills else NAITIK_SKILLS)]
     text = (title + ' ' + about).lower()
-    matched = [s for s in skills if s in text]
-    score = min(100, int((len(matched) / len(skills)) * 100) + 30)
+    matched = []
+    for s in skills:
+        if len(s) <= 2:
+            # require word boundary for very short tokens
+            if re.search(rf"\b{re.escape(s)}\b", text):
+                matched.append(s)
+        else:
+            if s in text:
+                matched.append(s)
+    score = min(100, int((len(matched) / max(1, len(skills))) * 100) + 30)
     return score, matched
 
 def scrape_internshala():
@@ -166,13 +175,20 @@ def find_all_jobs(user_skills=None, user_roles=None):
     return india + global_
 
 if __name__ == '__main__':
-    # Accept optional user skills from command line argument
     user_skills = None
+    user_roles = None
     if len(sys.argv) > 1:
         try:
-            user_skills = json.loads(sys.argv[1])
+            input_data = json.loads(sys.argv[1])
+            user_skills = input_data.get('skills', [])
+            user_roles = input_data.get('roles', [])
         except:
             pass
-
-    jobs = find_all_jobs(user_skills)
+    
+    # Use user skills for matching if provided
+    if user_skills:
+        # Override NAITIK_SKILLS with user's actual skills
+        NAITIK_SKILLS = [s.lower() for s in user_skills]
+    
+    jobs = find_all_jobs(user_skills, user_roles)
     print(json.dumps(jobs))

@@ -11,9 +11,13 @@ const api = axios.create({
 // Add Authorization header to all requests if token exists
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Try multiple places for the token to handle origin/host variations
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken') || sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.debug('api interceptor: attaching Authorization header, token length=', token.length, 'origin=', window.location.origin);
+    } else {
+      console.debug('api interceptor: no token found in storage for origin=', window.location.origin);
     }
     return config;
   },
@@ -34,6 +38,9 @@ export const searchJobs = () => api.post('/jobs/search');
 export const getJobById = (id) => api.get(`/jobs/${id}`);
 export const updateJobStatus = (id, status) => api.put(`/jobs/${id}/status`, { status });
 export const getJobStats = () => api.get('/jobs/stats');
+export const getSkillGapAnalysis = () => api.get('/jobs/skill-gap');
+export const toggleBookmark = (id) => api.put(`/jobs/${id}/bookmark`);
+export const getBookmarkedJobs = () => api.get('/jobs/bookmarked');
 
 // Resume Services
 export const uploadResume = (file) => {
@@ -46,6 +53,7 @@ export const uploadResume = (file) => {
   });
 };
 export const generateResume = (jobId) => api.get(`/resume/generate/${jobId}`);
+export const scoreResume = (data) => api.post('/resume/score', data);
 export const downloadResume = (jobId) =>
   api.get(`/resume/download/${jobId}`, { responseType: 'blob' });
 

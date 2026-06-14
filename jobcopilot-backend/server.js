@@ -1,4 +1,12 @@
 require('dotenv').config();
+
+// Fail fast when required env vars are missing to avoid silent 401s
+if (!process.env.JWT_SECRET || !process.env.MONGO_URI) {
+  console.error('Missing required environment variables: JWT_SECRET and/or MONGO_URI.');
+  console.error('Create a .env file in the backend folder (see .env.example) and set these values.');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');

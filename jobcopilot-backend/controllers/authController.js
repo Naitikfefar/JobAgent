@@ -106,22 +106,27 @@ exports.getMe = async (req, res) => {
 // Update User Profile
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, phone, profile, jobPreferences, telegramChatId } = req.body;
+    const { name, phone, profile, jobPreferences, telegramChatId, skills, preferredRoles, remoteOnly, currentRole, experienceYears } = req.body;
 
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (phone !== undefined) updateData.phone = phone;
-    if (profile) updateData.profile = profile;
-    if (jobPreferences) updateData.jobPreferences = jobPreferences;
-    if (telegramChatId !== undefined) updateData.telegramChatId = telegramChatId;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      updateData,
-      { new: true }
-    ).select('-password');
+    if (name) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+    if (profile) user.profile = profile;
+    if (jobPreferences) user.jobPreferences = jobPreferences;
+    if (telegramChatId !== undefined) user.telegramChatId = telegramChatId;
 
-    res.json(user);
+    // Custom profile fields
+    user.profile = user.profile || {};
+    if (skills) user.profile.skills = skills;
+    if (preferredRoles) user.profile.preferredRoles = preferredRoles;
+    if (remoteOnly !== undefined) user.profile.remoteOnly = remoteOnly;
+    if (currentRole) user.profile.currentRole = currentRole;
+    if (experienceYears) user.profile.experienceYears = experienceYears;
+
+    await user.save();
+    res.json({ message: 'Profile updated', profile: user.profile });
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server Error');
