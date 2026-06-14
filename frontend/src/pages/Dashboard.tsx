@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getTodayJobs, getJobStats, getBookmarkedJobs } from '@/services/api';
-import { Briefcase, FileText, Calendar, TrendingUp, Zap, Search, Clock } from 'lucide-react';
+import { Briefcase, FileText, Calendar, TrendingUp, Search, Clock, Trophy, Sparkles } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 
 export default function Dashboard() {
@@ -137,16 +137,16 @@ export default function Dashboard() {
                 </div>
               ) : (
                 displayJobs.map((job: any) => (
-                  <div key={job._id} className="card-hover p-6 bg-white dark:bg-[#1A1A2E] border border-slate-100 dark:border-[#2A2A3E]">
-                    <div className="flex justify-between items-start">
+                  <div key={job._id} className="card-hover p-6 bg-white dark:bg-[#1A1A2E] border border-slate-100 dark:border-[#2A2A3E] overflow-hidden">
+                    <div className="flex justify-between items-start flex-1 min-w-0">
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-slate-100 dark:bg-[#12121A] rounded-lg flex items-center justify-center font-bold text-primary">
                             {(job.company || '?').charAt(0)}
                           </div>
-                          <div>
-                            <h3 className="font-bold text-slate-900 dark:text-white">{job.title}</h3>
-                            <p className="text-slate-600 dark:text-[#A0A0B8] text-sm">{job.company}</p>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-slate-900 dark:text-white truncate">{job.title}</h3>
+                            <p className="text-slate-600 dark:text-[#A0A0B8] text-sm truncate">{job.company}</p>
                             <p className="text-xs text-slate-500 dark:text-[#6B6B80]">Source: {job.source || 'Unknown'}</p>
                           </div>
                         </div>
@@ -164,7 +164,8 @@ export default function Dashboard() {
                       </div>
                       <p className="text-slate-600 dark:text-[#A0A0B8] text-sm">{job.stipend}</p>
                     </div>
-                    <div className="mt-4 flex items-center gap-2">
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <Link to={`/interview-prep/${job._id}`} className="btn-secondary">Interview Prep</Link>
                       <Link to="/jobs" className="btn-secondary">View Details</Link>
                       {job.applyLink ? (
                         <a href={job.applyLink} target="_blank" rel="noreferrer" className="btn-primary">Apply Now</a>
@@ -182,6 +183,15 @@ export default function Dashboard() {
           <div className="space-y-6">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">Quick Actions</h2>
             <div className="space-y-3">
+              <Link to="/jobs" className="card-hover p-4 flex items-center gap-4 block bg-white dark:bg-[#12121A] border border-slate-100 dark:border-[#2A2A3E]">
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Interview Prep</p>
+                  <p className="text-sm text-slate-600 dark:text-[#A0A0B8]">Practice for interviews</p>
+                </div>
+              </Link>
               <Link to="/resume" className="card-hover p-4 flex items-center gap-4 block bg-white dark:bg-[#12121A] border border-slate-100 dark:border-[#2A2A3E]">
                 <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                   <FileText className="w-5 h-5 text-primary" />
@@ -198,6 +208,15 @@ export default function Dashboard() {
                 <div>
                   <p className="font-semibold text-slate-900 dark:text-white">Track Applications</p>
                   <p className="text-sm text-slate-600 dark:text-[#A0A0B8]">Manage all your applications</p>
+                </div>
+              </Link>
+              <Link to="/career" className="card-hover p-4 flex items-center gap-4 block bg-white dark:bg-[#12121A] border border-slate-100 dark:border-[#2A2A3E]">
+                <div className="w-10 h-10 bg-warning/10 rounded-lg flex items-center justify-center">
+                  <Trophy className="w-5 h-5 text-warning" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Career Growth</p>
+                  <p className="text-sm text-slate-600 dark:text-[#A0A0B8]">Track XP, streaks, and goals</p>
                 </div>
               </Link>
             </div>

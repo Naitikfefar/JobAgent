@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 const auth = async (req, res, next) => {
+  console.log('Auth middleware called for', req.method, req.originalUrl);
   let token;
   try {
     // Log whether an Authorization header is present for debugging (do not log full token)
@@ -13,15 +14,18 @@ const auth = async (req, res, next) => {
     // Get token from Authorization header
     const authHeader = req.header('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('Auth middleware: No Bearer token, returning 401');
       return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
     token = authHeader.split(' ')[1];
     if (!token) {
+      console.log('Auth middleware: Token empty, returning 401');
       return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Auth middleware: Token verified, user id:', decoded.user.id);
     req.user = decoded.user;
     next();
   } catch (error) {

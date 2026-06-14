@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getTodayJobs, searchJobs, updateJobStatus, toggleBookmark, getBookmarkedJobs } from '@/services/api';
+import { getTodayJobs, searchJobs, updateJobStatus, toggleBookmark, getBookmarkedJobs, recordCareerActivity } from '@/services/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
-import { Search, Filter, FileText, Mail, ExternalLink, CheckCircle2, XCircle, Bookmark, Share2, Check } from 'lucide-react';
+import { Search, Filter, FileText, Mail, ExternalLink, CheckCircle2, XCircle, Bookmark, Share2, Check, Sparkles } from 'lucide-react';
 
 export default function JobRecommendations() {
   const [jobs, setJobs] = useState([]);
@@ -25,6 +25,7 @@ export default function JobRecommendations() {
           index === self.findIndex(j => j._id === job._id)
         );
         setJobs(unique);
+        await recordCareerActivity('recommendations_reviewed');
       } catch (err) {
         console.error('Failed to fetch jobs:', err);
         setJobs([]);
@@ -174,24 +175,24 @@ Found via JobCopilot 🤖`;
         {/* Jobs Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
           {Array.isArray(uniqueJobs) ? uniqueJobs.map((job: any) => (
-            <div key={job._id} className="card-hover bg-white dark:bg-[#1A1A2E] border border-slate-100 dark:border-[#2A2A3E]">
+            <div key={job._id} className="card-hover bg-white dark:bg-[#1A1A2E] border border-slate-100 dark:border-[#2A2A3E] overflow-hidden">
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
                     <div className="w-14 h-14 bg-slate-100 dark:bg-[#12121A] rounded-xl flex items-center justify-center text-2xl font-bold text-primary shrink-0">
                       {job.company?.charAt(0) || '?'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-lg text-slate-900 dark:text-white truncate">{job.title}</h3>
-                      <p className="text-slate-600 dark:text-[#A0A0B8]">{job.company}</p>
+                      <p className="text-slate-600 dark:text-[#A0A0B8] truncate">{job.company}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
                         <span className="text-xs bg-slate-100 dark:bg-[#12121A] text-slate-700 dark:text-[#A0A0B8] px-2 py-1 rounded-full">{job.source}</span>
-                        <span className="text-sm text-slate-600 dark:text-[#A0A0B8]">{job.location}</span>
+                        <span className="text-sm text-slate-600 dark:text-[#A0A0B8] truncate">{job.location}</span>
                         <span className="text-sm font-medium text-slate-900 dark:text-white">{job.stipend}</span>
                       </div>
                     </div>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  <div className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
                     job.matchScore >= 80 ? 'bg-success/10 text-success' :
                     job.matchScore >= 60 ? 'bg-warning/10 text-warning' :
                     'bg-slate-100 dark:bg-[#12121A] text-slate-600 dark:text-[#A0A0B8]'
@@ -200,7 +201,7 @@ Found via JobCopilot 🤖`;
                   </div>
                 </div>
 
-                <p className="text-slate-600 dark:text-[#A0A0B8] text-sm mb-4 line-clamp-2">{job.about}</p>
+                <p className="text-slate-600 dark:text-[#A0A0B8] text-sm mb-4 line-clamp-2 overflow-hidden">{job.about}</p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
@@ -238,7 +239,13 @@ Found via JobCopilot 🤖`;
                   >
                     <FileText className="w-5 h-5" /> Apply Now
                   </a>
-                  <button className="btn-secondary flex-1 flex items-center justify-center gap-2">
+                  <Link
+                    to={`/interview-prep/${job._id}`}
+                    className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-5 h-5" /> Interview Prep
+                  </Link>
+                  <button className="btn-secondary flex items-center justify-center gap-2">
                     <Mail className="w-5 h-5" /> Cover Letter
                   </button>
                   <button

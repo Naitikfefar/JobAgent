@@ -30,6 +30,12 @@ app.use(cors({
 
 app.options('*', cors());
 
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -45,7 +51,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Rate limiting
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 100, // Increased for development
   message: 'Too many requests from this IP, please try again later.',
 });
 
@@ -66,6 +72,8 @@ app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/jobs/search', jobSearchLimiter, require('./routes/jobs'));
 app.use('/api/resume', require('./routes/resume'));
 app.use('/api/applications', require('./routes/applications'));
+app.use('/api/career', require('./routes/career'));
+app.use('/api/subscription', require('./routes/subscription'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

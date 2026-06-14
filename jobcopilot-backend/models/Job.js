@@ -45,7 +45,28 @@ const JobSchema = new mongoose.Schema({
     default: Date.now
   },
   appliedAt: Date,
-  notes: String
+  notes: String,
+  interviewPrep: {
+    difficulty: String,
+    estimated_prep_time: String,
+    questions: [{
+      id: Number,
+      category: String,
+      question: String,
+      difficulty: String,
+      model_answer: String,
+      tips: String,
+      follow_up: String
+    }],
+    company_specific_tips: [String],
+    preparation_checklist: [String]
+  },
+  interviewAnswers: [{
+    questionId: Number,
+    userAnswer: String,
+    rating: Number,
+    savedAt: Date
+  }]
 });
 
 JobSchema.index({ userId: 1 });
