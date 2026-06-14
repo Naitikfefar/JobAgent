@@ -26,7 +26,9 @@ exports.searchJobs = async (req, res) => {
     const agentInput = JSON.stringify({ skills: searchSkills, roles: userRoles, remote_only: remoteOnly });
     const escapedInput = agentInput.replace(/"/g, '\\"');
 
-    exec(`python "${agentPath}" "${escapedInput}"`, { timeout: 120000, maxBuffer: 1024 * 1024 * 10 },
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
+    exec(`${pythonCmd} "${agentPath}" "${escapedInput}"`, { timeout: 120000, maxBuffer: 1024 * 1024 * 10 },
       async (error, stdout, stderr) => {
         if (error) {
             console.error('Agent error:', error.message);
