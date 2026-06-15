@@ -26,26 +26,43 @@ exports.searchJobs = async (req, res) => {
     const agentInput = JSON.stringify({ skills: searchSkills, roles: userRoles, remote_only: remoteOnly });
     const escapedInput = agentInput.replace(/"/g, '\\"');
 
+    // const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
+    // exec(`${pythonCmd} "${agentPath}" "${escapedInput}"`, { timeout: 120000, maxBuffer: 1024 * 1024 * 10 },
+    //   async (error, stdout, stderr) => {
+    //     if (error) {
+    //         console.error('Agent error:', error.message);
+    //         console.error('Agent stderr:', stderr);
+    //         console.error('Agent stdout (truncated):', (stdout||'').slice(0,1000));
+    //         return res.status(500).json({ message: 'Job search failed', error: error.message, stderr: stderr });
+    //     }
+
+    //     let jobsData;
+    //     try {
+    //       jobsData = JSON.parse(stdout);
+    //     } catch (e) {
+    //       console.error('Parse error:', e);
+    //       console.error('Parse stdout:', stdout);
+    //       console.error('Parse stderr:', stderr);
+    //       return res.status(500).json({ message: 'Failed to parse results', parseError: e.message, stdout: (stdout||'').slice(0,200), stderr });
+    //     }
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
 
-    exec(`${pythonCmd} "${agentPath}" "${escapedInput}"`, { timeout: 120000, maxBuffer: 1024 * 1024 * 10 },
-      async (error, stdout, stderr) => {
-        if (error) {
-            console.error('Agent error:', error.message);
-            console.error('Agent stderr:', stderr);
-            console.error('Agent stdout (truncated):', (stdout||'').slice(0,1000));
-            return res.status(500).json({ message: 'Job search failed', error: error.message, stderr: stderr });
-        }
+exec(`${pythonCmd} "${agentPath}" "${escapedInput}"`,
+  { timeout: 120000, maxBuffer: 1024 * 1024 * 10 },
+  async (error, stdout, stderr) => {
+    // Log everything for debugging
+    console.log('Python stdout:', stdout?.slice(0, 500));
+    console.log('Python stderr:', stderr?.slice(0, 500));
+    console.log('Python error:', error?.message);
 
-        let jobsData;
-        try {
-          jobsData = JSON.parse(stdout);
-        } catch (e) {
-          console.error('Parse error:', e);
-          console.error('Parse stdout:', stdout);
-          console.error('Parse stderr:', stderr);
-          return res.status(500).json({ message: 'Failed to parse results', parseError: e.message, stdout: (stdout||'').slice(0,200), stderr });
-        }
+    if (error) {
+      return res.status(500).json({ 
+        message: 'Job search failed', 
+        error: error.message,
+        stderr: stderr?.slice(0, 200)
+      });
+    }
 
         // Remove today's existing jobs
         const startOfDay = new Date();
