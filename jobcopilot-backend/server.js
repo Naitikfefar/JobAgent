@@ -12,6 +12,20 @@ connectDB();
 
 const app = express();
 
+// CSP Headers
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: https:; " +
+    "connect-src 'self' http://localhost:5000 http://localhost:3000 http://localhost:5173;"
+  );
+  next();
+});
+
 // CORS configuration
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'],
