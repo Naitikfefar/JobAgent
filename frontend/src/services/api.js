@@ -8,8 +8,9 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
 console.log("API URL:", import.meta.env.VITE_API_URL);
+
+
 
 // Add Authorization header to all requests if token exists
 api.interceptors.request.use(
