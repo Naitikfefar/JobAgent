@@ -12,6 +12,20 @@ connectDB();
 
 const app = express();
 
+// CSP middleware
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: https:; " +
+    "connect-src 'self' http://localhost:5000 http://localhost:3000 http://localhost:5173;"
+  );
+  next();
+});
+
 // CORS configuration
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'],
@@ -27,6 +41,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads folder
 app.use('/uploads', express.static('uploads'));
+
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -58,6 +75,11 @@ app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/jobs/search', jobSearchLimiter, require('./routes/jobs'));
 app.use('/api/resume', require('./routes/resume'));
 app.use('/api/applications', require('./routes/applications'));
+
+// SPA fallback — serve index.html for any non-API GET request (React Router)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
