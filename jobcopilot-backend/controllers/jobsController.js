@@ -16,18 +16,22 @@ try {
 // Auto-detect Python command
 const getPythonCmd = () => {
   const { execSync } = require('child_process');
-  const cmds = ['python3', 'python', '/usr/bin/python3', '/usr/local/bin/python3'];
-  for (const cmd of cmds) {
-    try {
-      execSync(`${cmd} --version`, { stdio: 'ignore' });
-      console.log('Found Python:', cmd);
-      return cmd;
-    } catch (e) {
-      continue;
-    }
-  }
-  console.log('No Python found, defaulting to python3');
-  return 'python3';
+
+try {
+  console.log(
+    'PATH =',
+    execSync('echo $PATH').toString()
+  );
+} catch (e) {}
+
+try {
+  console.log(
+    'Python binaries:',
+    execSync('find / -name python* 2>/dev/null | head -20').toString()
+  );
+} catch (e) {
+  console.log('No python binaries found');
+}
 };
 
 // Helper: Generate cover letter using Groq
