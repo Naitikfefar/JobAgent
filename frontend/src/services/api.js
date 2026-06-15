@@ -1,12 +1,11 @@
 import axios from 'axios';
 
 // Create axios instance with base URL
-const api = axios.create({
-  baseURL: 'https://job-agent-mocha.vercel.app/',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+const API = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 30000,
 });
+
 
 // Add Authorization header to all requests if token exists
 api.interceptors.request.use(
