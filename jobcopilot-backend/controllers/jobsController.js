@@ -32,6 +32,9 @@ try {
 } catch (e) {
   console.log('No python binaries found');
 }
+console.log(
+  execSync('python3 --version').toString()
+);
 };
 
 // Helper: Generate cover letter using Groq

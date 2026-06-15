@@ -1,5 +1,5 @@
 require('dotenv').config();
-
+app.set('trust proxy', 1);
 if (!process.env.JWT_SECRET || !process.env.MONGO_URI) {
   console.error('Missing required environment variables: JWT_SECRET and/or MONGO_URI.');
   process.exit(1);
