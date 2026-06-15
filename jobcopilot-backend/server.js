@@ -28,6 +28,12 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files from uploads folder
 app.use('/uploads', express.static('uploads'));
 
+// Serve frontend static files
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+}
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -58,6 +64,13 @@ app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/jobs/search', jobSearchLimiter, require('./routes/jobs'));
 app.use('/api/resume', require('./routes/resume'));
 app.use('/api/applications', require('./routes/applications'));
+
+// SPA fallback: serve index.html for any non-API route (React Router support)
+if (fs.existsSync(publicDir)) {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
