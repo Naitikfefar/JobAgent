@@ -12,6 +12,11 @@ connectDB();
 
 const app = express();
 
+// Root health check
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'JobAgent API is running' });
+});
+
 // CORS configuration
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'],
