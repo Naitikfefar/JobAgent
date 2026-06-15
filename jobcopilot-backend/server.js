@@ -20,27 +20,24 @@ connectDB();
 
 const app = express();
 
-// CORS configuration
-// app.use(cors({
-//   origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'],
-//   credentials: true,
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-//   allowedHeaders: ['Content-Type', 'Authorization']
-// }));
+
 
 
 // CORS configuration
-app.use(
-  cors({
-    origin: [
-      'https://job-agent-mocha.vercel.app',
-      'http://localhost:5173',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://job-agent-git-main-naitikfefars-projects.vercel.app',
+    'https://jobagent.vercel.app',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.options('*', cors());
 
 // Log all requests
 app.use((req, res, next) => {
