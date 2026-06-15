@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: 'https://job-agent-mocha.vercel.app',
+  baseURL: 'https://job-agent-git-master-naitikfefars-projects.vercel.app/',
   headers: {
     'Content-Type': 'application/json',
   },
