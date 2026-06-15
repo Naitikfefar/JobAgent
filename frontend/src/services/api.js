@@ -2,11 +2,10 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: 'https://job-agent-git-master-naitikfefars-projects.vercel.app/',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 30000,
 });
+console.log("API URL:", import.meta.env.VITE_API_URL);
 
 // Add Authorization header to all requests if token exists
 api.interceptors.request.use(
