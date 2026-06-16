@@ -5,6 +5,7 @@ import os
 import time
 import sys
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor
 
 TODAY = date.today().strftime('%Y-%m-%d')
 RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY', '')
@@ -66,11 +67,11 @@ def scrape_internshala():
         'https://internshala.com/internships/work-from-home-data-science-internship',
         'https://internshala.com/internships/work-from-home-python-internship',
     ]
-    jobs = []
-    seen = set()
-    for url in urls:
+
+    def fetch_one(url):
+        page_jobs = []
         try:
-            r = requests.get(url, headers=HEADERS, timeout=15)
+            r = requests.get(url, headers=HEADERS, timeout=10)
             soup = BeautifulSoup(r.text, 'html.parser')
             for card in soup.find_all('div', class_='internship_meta'):
                 try:
@@ -80,7 +81,7 @@ def scrape_internshala():
                         continue
                     company = card.find('p', class_='company-name')
                     company = company.text.strip() if company else None
-                    if not company or company in seen:
+                    if not company:
                         continue
                     link = card.find('a', class_='job-title-href')
                     link = 'https://internshala.com' + link['href'] if link else None
@@ -95,8 +96,7 @@ def scrape_internshala():
                     about = card.find('div', class_='about_job')
                     about = about.text.strip()[:500] if about else ''
                     score, matched = calc_match(title, about)
-                    seen.add(company)
-                    jobs.append({
+                    page_jobs.append({
                         'title': title, 'company': company,
                         'apply_link': link, 'stipend': stipend,
                         'duration': duration, 'about': about,
@@ -107,6 +107,17 @@ def scrape_internshala():
                     continue
         except Exception as e:
             sys.stderr.write(f'Internshala error: {e}\n')
+        return page_jobs
+
+    jobs = []
+    seen = set()
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = executor.map(fetch_one, urls)
+        for page_jobs in results:
+            for job in page_jobs:
+                if job['company'] not in seen:
+                    seen.add(job['company'])
+                    jobs.append(job)
     return jobs
 
 def search_jsearch():
@@ -120,39 +131,47 @@ def search_jsearch():
         'MERN stack developer intern',
         'Software developer intern India fresher',
     ]
-    jobs = []
-    seen = set()
-    for query in queries:
+
+    def fetch_one(query):
+        page_jobs = []
         try:
             r = requests.get('https://jsearch.p.rapidapi.com/search',
                 params={'query': query, 'page': '1', 'num_pages': '1'},
                 headers={'X-RapidAPI-Key': RAPIDAPI_KEY,
-                         'X-RapidAPI-Host': 'jsearch.p.rapidapi.com'})
+                         'X-RapidAPI-Host': 'jsearch.p.rapidapi.com'},
+                timeout=10)
             if r.status_code != 200:
-                continue
+                return page_jobs
             for job in r.json().get('data', []):
-                jid = job.get('job_id')
-                if jid in seen:
-                    continue
                 title = job.get('job_title', '')
                 if not is_tech(title):
                     continue
-                company = job.get('employer_name', '')
                 about = job.get('job_description', '')[:400]
                 score, matched = calc_match(title, about)
                 publisher = job.get('job_publisher', 'Job Board')
-                seen.add(jid)
-                jobs.append({
-                    'title': title, 'company': company,
+                page_jobs.append({
+                    'title': title, 'company': job.get('employer_name', ''),
                     'apply_link': job.get('job_apply_link', ''),
                     'stipend': job.get('job_salary_string') or 'See listing',
                     'duration': 'See listing', 'about': about,
                     'match_score': score, 'matched_skills': matched,
-                    'source': publisher
+                    'source': publisher,
+                    '_jid': job.get('job_id')
                 })
-            time.sleep(0.3)
         except Exception as e:
             sys.stderr.write(f'JSearch error: {e}\n')
+        return page_jobs
+
+    jobs = []
+    seen = set()
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        results = executor.map(fetch_one, queries)
+        for page_jobs in results:
+            for job in page_jobs:
+                jid = job.pop('_jid', None)
+                if jid not in seen:
+                    seen.add(jid)
+                    jobs.append(job)
     return jobs
 
 def find_all_jobs(user_skills=None, user_roles=None):
