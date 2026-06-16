@@ -90,7 +90,7 @@ exports.searchJobs = async (req, res) => {
       {
         maxBuffer: 1024 * 1024 * 10,
       },
-      (error, stdout, stderr) => {
+      async (error, stdout, stderr) => {
         console.log("Python stdout:", stdout);
         console.log("Python stderr:", stderr);
 
@@ -103,12 +103,38 @@ exports.searchJobs = async (req, res) => {
         }
 
         try {
-          const jobs = JSON.parse(stdout);
+          const rawJobs = JSON.parse(stdout || '[]');
 
-          return res.json({
-            success: true,
-            jobs,
+          // Normalize keys from snake_case to camelCase to match Job model
+          const normalized = rawJobs.map(j => ({
+            userId: req.user.id,
+            title: j.title || '',
+            company: j.company || '',
+            source: j.source || '',
+            applyLink: j.apply_link || j.applyLink || '',
+            stipend: j.stipend || '',
+            duration: j.duration || '',
+            about: j.about || '',
+            matchScore: typeof j.match_score === 'number' ? j.match_score : (j.match_score ? Number(j.match_score) : 0),
+            matchedSkills: j.matched_skills || j.matchedSkills || [],
+            foundAt: new Date()
+          }));
+
+          // Persist normalized jobs to MongoDB (upsert by userId + title + company)
+          const upsertPromises = normalized.map(nj => {
+            const filter = { userId: req.user.id, title: nj.title, company: nj.company };
+            const update = { $set: nj };
+            const options = { new: true, upsert: true, setDefaultsOnInsert: true };
+            return Job.findOneAndUpdate(filter, update, options)
+              .catch(saveErr => {
+                console.error('Error saving job:', saveErr);
+                return null;
+              });
           });
+
+          const savedJobs = (await Promise.all(upsertPromises)).filter(Boolean);
+
+          return res.json({ success: true, jobs: savedJobs });
         } catch (parseError) {
           console.error("JSON Parse Error:", parseError);
 
