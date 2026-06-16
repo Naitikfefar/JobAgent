@@ -1,4 +1,4 @@
-const { exec } = require('child_process');
+
 const path = require('path');
 const mongoose = require('mongoose');
 const Job = require('../models/Job');
@@ -13,29 +13,7 @@ try {
   recordCareerActivity = async () => {};
 }
 
-// Auto-detect Python command
-const getPythonCmd = () => {
-  const { execSync } = require('child_process');
 
-try {
-  console.log(
-    'PATH =',
-    execSync('echo $PATH').toString()
-  );
-} catch (e) {}
-
-try {
-  console.log(
-    'Python binaries:',
-    execSync('find / -name python* 2>/dev/null | head -20').toString()
-  );
-} catch (e) {
-  console.log('No python binaries found');
-}
-console.log(
-  execSync('python3 --version').toString()
-);
-};
 
 // Helper: Generate cover letter using Groq
 async function generateCoverLetter(jobTitle, company, jobDesc, skills, userName) {
@@ -66,126 +44,88 @@ Under 200 words. Specific to this job.`
   }
 }
 
-// Search jobs (trigger Python agent)
+const { exec, execSync } = require("child_process");
+
+// Auto-detect Python command
+function getPythonCmd() {
+  try {
+    execSync("python3 --version", { stdio: "ignore" });
+    return "python3";
+  } catch (err) {
+    try {
+      execSync("python --version", { stdio: "ignore" });
+      return "python";
+    } catch (err2) {
+      throw new Error("Python not found on system");
+    }
+  }
+}
+const agentPath = path.join(__dirname, '../agents/find_jobs.py');
 exports.searchJobs = async (req, res) => {
   try {
-    console.log('Search jobs called for user:', req.user?.id);
-    const user = await User.findById(req.user.id);
-    console.log('User found:', user?.name, 'Skills:', user?.profile?.skills?.length);
-
-    const userSkills = user.profile?.skills || [];
-    const userRoles = user.profile?.preferredRoles || [];
-    const remoteOnly = user.profile?.remoteOnly !== false;
-
-    const searchSkills = userSkills.length > 0 ? userSkills : [
-      'react', 'node', 'javascript', 'python', 'full stack',
-      'frontend', 'backend', 'mongodb', 'sql', 'web development'
-    ];
-
-    const agentPath = path.join(__dirname, '../agents/find_jobs.py');
-    const agentInput = JSON.stringify({
-      skills: searchSkills,
-      roles: userRoles,
-      remote_only: remoteOnly
-    });
-
-    // Safely escape for shell
-    const escapedInput = agentInput
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"');
-
     const pythonCmd = getPythonCmd();
-    console.log('Using Python:', pythonCmd);
-    console.log('Agent path:', agentPath);
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found"
+      });
+    }
+
+    const searchParams = {
+      skills: user.profile?.skills || [],
+      roles: user.profile?.targetRoles || [],
+      remote_only: true
+    };
+
+    console.log("PATH =", process.env.PATH);
+    console.log("Using Python =", pythonCmd);
+    console.log("Search Params =", searchParams);
+    console.log("Agent Path =", agentPath);
 
     exec(
-      `${pythonCmd} "${agentPath}" "${escapedInput}"`,
-      { timeout: 120000, maxBuffer: 1024 * 1024 * 10 },
-      async (error, stdout, stderr) => {
-        console.log('Python stdout:', stdout?.slice(0, 500));
-        console.log('Python stderr:', stderr?.slice(0, 300));
-        console.log('Python error:', error?.message);
+      `${pythonCmd} "${agentPath}" '${JSON.stringify(searchParams)}'`,
+      {
+        maxBuffer: 1024 * 1024 * 10,
+      },
+      (error, stdout, stderr) => {
+        console.log("Python stdout:", stdout);
+        console.log("Python stderr:", stderr);
 
         if (error) {
+          console.error("Python error:", error);
           return res.status(500).json({
-            message: 'Job search failed - Python agent error',
+            success: false,
             error: error.message,
-            stderr: stderr?.slice(0, 300)
           });
         }
 
-        if (!stdout || stdout.trim() === '') {
-          return res.status(500).json({
-            message: 'Job search returned empty results',
-            stderr: stderr?.slice(0, 300)
-          });
-        }
-
-        let jobsData;
         try {
-          jobsData = JSON.parse(stdout.trim());
-        } catch (e) {
-          console.error('JSON parse error:', e.message);
-          console.error('Raw stdout:', stdout?.slice(0, 500));
+          const jobs = JSON.parse(stdout);
+
+          return res.json({
+            success: true,
+            jobs,
+          });
+        } catch (parseError) {
+          console.error("JSON Parse Error:", parseError);
+
           return res.status(500).json({
-            message: 'Failed to parse job results',
-            parseError: e.message,
-            stdout: stdout?.slice(0, 200)
+            success: false,
+            error: "Invalid response from Python agent",
           });
         }
-
-        if (!Array.isArray(jobsData) || jobsData.length === 0) {
-          return res.json([]);
-        }
-
-        // Delete today's existing jobs
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        await Job.deleteMany({ userId: req.user.id, foundAt: { $gte: startOfDay } });
-
-        const savedJobs = [];
-        const seenCompanies = new Set();
-
-        for (const job of jobsData) {
-          try {
-            const companyKey = job.company?.toLowerCase().trim();
-            if (!companyKey || seenCompanies.has(companyKey)) continue;
-            seenCompanies.add(companyKey);
-
-            const coverLetter = await generateCoverLetter(
-              job.title, job.company, job.about || '',
-              searchSkills, user.name
-            );
-
-            const newJob = new Job({
-              userId: req.user.id,
-              title: job.title,
-              company: job.company,
-              source: job.source,
-              applyLink: job.apply_link,
-              stipend: job.stipend,
-              duration: job.duration,
-              about: job.about,
-              matchScore: job.match_score,
-              matchedSkills: job.matched_skills || [],
-              coverLetter: coverLetter,
-              status: 'new'
-            });
-
-            await newJob.save();
-            savedJobs.push(newJob);
-          } catch (jobError) {
-            console.error('Job save error:', jobError.message);
-          }
-        }
-
-        console.log('Saved', savedJobs.length, 'jobs for user', user.name);
-        res.json(savedJobs);
       }
     );
-  } catch (error) {
-    console.error('searchJobs error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (err) {
+    console.error("searchJobs error:", err);
+
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 };
 
