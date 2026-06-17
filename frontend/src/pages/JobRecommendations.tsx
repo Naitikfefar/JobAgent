@@ -82,7 +82,7 @@ export default function JobRecommendations() {
     setLoading(true);
     try {
       const response: any = await searchJobs();
-      const results = response?.data || [];
+      const results = response?.data?.jobs || [];
       setJobs(results.filter((job: any, index: number, self: any[]) =>
         index === self.findIndex(j => j._id === job._id)
       ));

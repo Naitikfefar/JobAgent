@@ -113,6 +113,7 @@ exports.generateResume = async (req, res) => {
     const job = await Job.findOne({ _id: req.params.jobId, userId: req.user.id });
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
+
     const user = await User.findById(req.user.id);
     const userProfile = {
       name: user.name,
@@ -127,7 +128,15 @@ exports.generateResume = async (req, res) => {
     const { exec } = require('child_process');
     const path = require('path');
     const agentPath = path.join(__dirname, '../agents/ai_resume.py');
-    const outputPath = path.join(__dirname, '../uploads', `resume-${req.user.id}-${job._id}.pdf`);
+
+    // Ensure uploads directory exists (avoids silent Python failures)
+    const uploadsDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const outputPath = path.join(uploadsDir, `resume-${req.user.id}-${job._id}.pdf`);
+
 
     const input = JSON.stringify({
       job_title: job.title,
@@ -141,10 +150,18 @@ exports.generateResume = async (req, res) => {
 
     exec(`python "${agentPath}" "${escapedInput}"`,
       { timeout: 60000 },
-      async (error, stdout) => {
-        if (error) return res.status(500).json({ message: 'Resume generation failed' });
+      async (error, stdout, stderr) => {
+        if (error) {
+          console.error('generateResume exec error:', {
+            message: error.message,
+            code: error.code,
+            stderr,
+          });
+          return res.status(500).json({ message: 'Resume generation failed', error: error.message, stderr });
+        }
         try {
           const result = JSON.parse(stdout);
+
           job.resumePath = result.resume_path;
           if (typeof result.match_score === 'number') {
             job.optimizedResumeScore = result.match_score;
@@ -161,12 +178,18 @@ exports.generateResume = async (req, res) => {
             jobId: job._id
           });
         } catch(e) {
-          res.status(500).json({ message: 'Failed to parse result' });
+          console.error('generateResume JSON parse error:', {
+            message: e.message,
+            stdout,
+            stderr,
+          });
+          return res.status(500).json({ message: 'Failed to parse result', error: e.message, stdout, stderr });
         }
       }
     );
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('generateResume handler error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
