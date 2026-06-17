@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Zap, Crown, Star, Shield } from 'lucide-react';
-import { createOrder, verifyPayment, getMySubscription } from '@/services/api';
+import { createOrder, verifyPayment, getMySubscription, manualUpgrade } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import axios from 'axios';
 
 export default function Pricing() {
   const [currentPlan, setCurrentPlan] = useState('free');
@@ -86,12 +85,9 @@ export default function Pricing() {
   // Manual upgrade for testing
   const handleManualUpgrade = async (planName: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post('http://localhost:5000/api/subscription/manual-upgrade', 
-        { plan: planName },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await manualUpgrade(planName);
       alert(res.data.message);
+
       const subRes = await getMySubscription();
       setCurrentPlan(subRes.data.plan);
       setShowSuccess(true);

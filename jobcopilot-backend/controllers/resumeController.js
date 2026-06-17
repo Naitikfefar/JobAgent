@@ -4,6 +4,7 @@ const fs = require('fs');
 const User = require('../models/User');
 const Job = require('../models/Job');
 const { recordCareerActivity } = require('../services/careerProgressService');
+const { getPythonCmd } = require('../utils/pythonCmd');
 
 // Upload Resume
 exports.uploadResume = async (req, res) => {
@@ -27,8 +28,9 @@ exports.uploadResume = async (req, res) => {
       uploadedAt: new Date()
     };
     // Run Python resume parser
+    const pythonCmd = getPythonCmd();
     const parserPath = path.join(__dirname, '../agents/resume_parser.py');
-    exec(`python "${parserPath}" "${newFilePath}"`, { timeout: 30000 }, async (error, stdout, stderr) => {
+    exec(`${pythonCmd} "${parserPath}" "${newFilePath}"`, { timeout: 30000 }, async (error, stdout, stderr) => {
         if (error) {
           console.error('Resume parser error:', error, stderr);
         }
@@ -147,8 +149,9 @@ exports.generateResume = async (req, res) => {
     });
 
     const escapedInput = input.replace(/"/g, '\\"').replace(/\n/g, ' ');
+    const pythonCmd = getPythonCmd();
 
-    exec(`python "${agentPath}" "${escapedInput}"`,
+    exec(`${pythonCmd} "${agentPath}" "${escapedInput}"`,
       { timeout: 60000 },
       async (error, stdout, stderr) => {
         if (error) {

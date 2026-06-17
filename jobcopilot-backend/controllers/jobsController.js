@@ -44,22 +44,8 @@ Under 200 words. Specific to this job.`
   }
 }
 
-const { exec, execSync } = require("child_process");
-
-// Auto-detect Python command
-function getPythonCmd() {
-  try {
-    execSync("python3 --version", { stdio: "ignore" });
-    return "python3";
-  } catch (err) {
-    try {
-      execSync("python --version", { stdio: "ignore" });
-      return "python";
-    } catch (err2) {
-      throw new Error("Python not found on system");
-    }
-  }
-}
+const { exec } = require("child_process");
+const { getPythonCmd } = require("../utils/pythonCmd");
 const agentPath = path.join(__dirname, '../agents/find_jobs.py');
 exports.searchJobs = async (req, res) => {
   try {

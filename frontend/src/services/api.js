@@ -84,6 +84,9 @@ export const getMySubscription = () =>
 export const cancelSubscription = () =>
   api.post('/subscription/cancel');
 
+export const manualUpgrade = (plan) =>
+  api.post('/subscription/manual-upgrade', { plan });
+
 // Resume Services
 export const uploadResume = (file) => {
   const formData = new FormData();
