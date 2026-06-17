@@ -69,6 +69,12 @@ export const getInterviewPrep = (jobId) =>
 export const saveInterviewAnswer = (data) =>
   api.post('/jobs/interview-answers', data);
 
+export const generateCoverLetter = (jobId) =>
+  api.get(`/jobs/${jobId}/generate-cover-letter`);
+
+export const getCoverLetters = () =>
+  api.get('/jobs/cover-letters');
+
 // Subscription Services
 export const getPlans = () => api.get('/subscription/plans');
 

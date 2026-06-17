@@ -44,6 +44,45 @@ Under 200 words. Specific to this job.`
   }
 }
 
+// Generate cover letter for a specific job
+exports.generateCoverLetter = async (req, res) => {
+  try {
+    const job = await Job.findOne({ _id: req.params.jobId, userId: req.user.id });
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // If cover letter already exists, return it
+    if (job.coverLetter) {
+      return res.json({ coverLetter: job.coverLetter });
+    }
+
+    const user = await User.findById(req.user.id);
+    const userSkills = user.profile?.skills || [];
+    const userName = user.name || 'Candidate';
+
+    const coverLetter = await generateCoverLetter(
+      job.title,
+      job.company,
+      job.about,
+      userSkills,
+      userName
+    );
+
+    // Save to job
+    job.coverLetter = coverLetter;
+    await job.save();
+
+    await recordCareerActivity(req.user.id, 'cover_letter_generated', {
+      refId: job._id.toString(),
+      eventKey: `cover_letter_generated:${job._id}`
+    });
+
+    res.json({ coverLetter: job.coverLetter });
+  } catch (error) {
+    console.error('Cover letter generation error:', error);
+    res.status(500).json({ message: 'Failed to generate cover letter', error: error.message });
+  }
+}
+
 const { exec } = require("child_process");
 const { getPythonCmd } = require("../utils/pythonCmd");
 const agentPath = path.join(__dirname, '../agents/find_jobs.py');

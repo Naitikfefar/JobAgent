@@ -9,7 +9,8 @@ const {
   updateJobStatus, 
   getJobStats,
   generateInterviewPrep,
-  saveInterviewAnswer
+  saveInterviewAnswer,
+  generateCoverLetter
 } = require('../controllers/jobsController');
 const { toggleBookmark, getBookmarkedJobs } = require('../controllers/jobsController');
 const auth = require('../middleware/auth');
@@ -27,5 +28,6 @@ router.put('/:id/status', auth, updateJobStatus);
 router.put('/:id/bookmark', auth, toggleBookmark);
 router.get('/:jobId/interview-prep', auth, requirePlan('pro'), generateInterviewPrep);
 router.post('/interview-answers', auth, saveInterviewAnswer);
+router.get('/:jobId/generate-cover-letter', auth, requirePlan('pro'), generateCoverLetter);
 
 module.exports = router;

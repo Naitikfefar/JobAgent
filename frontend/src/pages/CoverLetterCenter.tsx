@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import { FileText, Download, Plus, ExternalLink, X } from 'lucide-react';
-import { getTodayJobs } from '@/services/api';
+import { getCoverLetters } from '@/services/api';
 
 export default function CoverLetterCenter() {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -15,9 +15,8 @@ export default function CoverLetterCenter() {
     const fetchCoverLetters = async () => {
       setLoading(true);
       try {
-        const response = await getTodayJobs();
-        const jobsWithLetters = (response.data || []).filter((job: any) => job.coverLetter);
-        setJobs(jobsWithLetters);
+        const response = await getCoverLetters();
+        setJobs(response.data || []);
       } catch (err) {
         console.error('Failed to fetch cover letters:', err);
       } finally {

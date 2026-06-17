@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getTodayJobs, searchJobs, updateJobStatus, toggleBookmark, getBookmarkedJobs, recordCareerActivity } from '@/services/api';
+import { getTodayJobs, searchJobs, updateJobStatus, toggleBookmark, getBookmarkedJobs, recordCareerActivity, generateCoverLetter } from '@/services/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { Search, Filter, FileText, Mail, ExternalLink, CheckCircle2, XCircle, Bookmark, Share2, Check, Sparkles } from 'lucide-react';
@@ -137,6 +137,24 @@ Found via JobCopilot 🤖`;
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
   };
 
+  const handleCoverLetter = async (job: any) => {
+    try {
+      setLoading(true);
+      const res = await generateCoverLetter(job._id);
+      setJobs(prev => (prev || []).map(j => j._id === job._id ? { ...j, coverLetter: res.data.coverLetter } : j));
+      alert('Cover letter generated successfully! Check Cover Letter Center to view it.');
+    } catch (err) {
+      console.error('Cover letter generation failed:', err);
+      if (err.response?.status === 403) {
+        alert('Cover letters are a Pro feature. Upgrade your subscription to access this.');
+      } else {
+        alert('Failed to generate cover letter.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Sidebar>
       <div className="p-8 max-w-6xl mx-auto space-y-6 bg-white dark:bg-[#0A0A0F] text-slate-900 dark:text-white">
@@ -245,7 +263,11 @@ Found via JobCopilot 🤖`;
                   >
                     <Sparkles className="w-5 h-5" /> Interview Prep
                   </Link>
-                  <button className="btn-secondary flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => handleCoverLetter(job)}
+                    disabled={loading}
+                    className="btn-secondary flex items-center justify-center gap-2"
+                  >
                     <Mail className="w-5 h-5" /> Cover Letter
                   </button>
                   <button
