@@ -9,7 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 TODAY = date.today().strftime('%Y-%m-%d')
 RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY', '')
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
 NAITIK_SKILLS = [
     'react', 'node', 'javascript', 'mongodb', 'mysql', 'sql',
@@ -34,15 +35,18 @@ EXCLUDE = [
     'teaching', 'legal', 'logistics', 'fashion', 'business development'
 ]
 
+
 def is_tech(title):
     t = title.lower()
     if any(ex in t for ex in EXCLUDE):
         return False
     return any(kw in t for kw in TECH_TITLES)
 
+
 def calc_match(title, about, user_skills=None):
     import re
-    skills = [s.lower() for s in (user_skills if user_skills else NAITIK_SKILLS)]
+    skills = [s.lower()
+              for s in (user_skills if user_skills else NAITIK_SKILLS)]
     text = (title + ' ' + about).lower()
     matched = []
     for s in skills:
@@ -55,6 +59,7 @@ def calc_match(title, about, user_skills=None):
                 matched.append(s)
     score = min(100, int((len(matched) / max(1, len(skills))) * 100) + 30)
     return score, matched
+
 
 def scrape_internshala():
     urls = [
@@ -71,7 +76,7 @@ def scrape_internshala():
     def fetch_one(url):
         page_jobs = []
         try:
-            r = requests.get(url, headers=HEADERS, timeout=10)
+            r = requests.get(url, headers=HEADERS, timeout=5)
             soup = BeautifulSoup(r.text, 'html.parser')
             for card in soup.find_all('div', class_='internship_meta'):
                 try:
@@ -84,7 +89,8 @@ def scrape_internshala():
                     if not company:
                         continue
                     link = card.find('a', class_='job-title-href')
-                    link = 'https://internshala.com' + link['href'] if link else None
+                    link = 'https://internshala.com' + \
+                        link['href'] if link else None
                     stipend = card.find('span', class_='stipend')
                     stipend = stipend.text.strip() if stipend else 'See listing'
                     duration_tags = card.find_all('div', class_='row-1-item')
@@ -120,6 +126,7 @@ def scrape_internshala():
                     jobs.append(job)
     return jobs
 
+
 def search_jsearch():
     if not RAPIDAPI_KEY:
         return []
@@ -136,10 +143,11 @@ def search_jsearch():
         page_jobs = []
         try:
             r = requests.get('https://jsearch.p.rapidapi.com/search',
-                params={'query': query, 'page': '1', 'num_pages': '1'},
-                headers={'X-RapidAPI-Key': RAPIDAPI_KEY,
-                         'X-RapidAPI-Host': 'jsearch.p.rapidapi.com'},
-                timeout=10)
+                             params={'query': query,
+                                     'page': '1', 'num_pages': '1'},
+                             headers={'X-RapidAPI-Key': RAPIDAPI_KEY,
+                                      'X-RapidAPI-Host': 'jsearch.p.rapidapi.com'},
+                             timeout=10)
             if r.status_code != 200:
                 return page_jobs
             for job in r.json().get('data', []):
@@ -174,6 +182,7 @@ def search_jsearch():
                     jobs.append(job)
     return jobs
 
+
 def find_all_jobs(user_skills=None, user_roles=None):
     india_jobs = scrape_internshala()
     global_jobs = search_jsearch()
@@ -193,6 +202,7 @@ def find_all_jobs(user_skills=None, user_roles=None):
     global_ = [j for j in unique if j['source'] != 'Internshala'][:4]
     return india + global_
 
+
 if __name__ == '__main__':
     user_skills = None
     user_roles = None
@@ -203,11 +213,11 @@ if __name__ == '__main__':
             user_roles = input_data.get('roles', [])
         except:
             pass
-    
+
     # Use user skills for matching if provided
     if user_skills:
         # Override NAITIK_SKILLS with user's actual skills
         NAITIK_SKILLS = [s.lower() for s in user_skills]
-    
+
     jobs = find_all_jobs(user_skills, user_roles)
     print(json.dumps(jobs))
